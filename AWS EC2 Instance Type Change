@@ -1,0 +1,220 @@
+Lab Objective
+
+Change the EC2 instance:
+
+nautilus-ec2
+
+From:
+
+t2.micro
+
+To:
+
+t2.nano
+
+And ensure:
+
+Instance State = Running
+Status Checks = OK
+Step 1: Verify AWS Login
+aws sts get-caller-identity
+
+Expected:
+
+{
+  "Account": "127822742629",
+  "Arn": "arn:aws:iam::xxxxxxxx:user/kk_labs_user"
+}
+Step 2: Find the Instance
+aws ec2 describe-instances \
+  --region us-east-1 \
+  --filters "Name=tag:Name,Values=nautilus-ec2" \
+  --query "Reservations[*].Instances[*].[InstanceId,State.Name,InstanceType]" \
+  --output table
+
+Example:
+
+-----------------------------------------------
+| Instance ID         | State   | Type        |
++---------------------+---------+-------------+
+| i-04b9ed6a6c8fdba67 | running | t2.micro    |
+-----------------------------------------------
+Step 3: Check EC2 Status Checks
+Why?
+
+AWS performs:
+
+System Status Check
+Instance Status Check
+
+Both must be ok.
+
+Check:
+
+aws ec2 describe-instance-status \
+  --instance-ids <INSTANCE_ID> \
+  --region us-east-1 \
+  --output table
+
+Possible output:
+
+InstanceStatus : initializing
+SystemStatus   : initializing
+
+Wait until healthy:
+
+aws ec2 wait instance-status-ok \
+  --instance-ids <INSTANCE_ID> \
+  --region us-east-1
+
+Verify again:
+
+InstanceStatus : ok
+SystemStatus   : ok
+Step 4: Stop the Instance
+
+AWS does not allow instance type changes on a running instance.
+
+Stop:
+
+aws ec2 stop-instances \
+  --instance-ids <INSTANCE_ID> \
+  --region us-east-1
+
+Wait:
+
+aws ec2 wait instance-stopped \
+  --instance-ids <INSTANCE_ID> \
+  --region us-east-1
+Step 5: Change Instance Type
+
+Change:
+
+t2.micro → t2.nano
+
+Command:
+
+aws ec2 modify-instance-attribute \
+  --instance-id <INSTANCE_ID> \
+  --instance-type '{"Value":"t2.nano"}' \
+  --region us-east-1
+
+Verify:
+
+aws ec2 describe-instances \
+  --instance-ids <INSTANCE_ID> \
+  --query "Reservations[*].Instances[*].InstanceType" \
+  --output text
+
+Expected:
+
+t2.nano
+Step 6: Start the Instance
+aws ec2 start-instances \
+  --instance-ids <INSTANCE_ID> \
+  --region us-east-1
+
+Wait:
+
+aws ec2 wait instance-running \
+  --instance-ids <INSTANCE_ID> \
+  --region us-east-1
+Step 7: Final Verification
+
+Verify instance state and type:
+
+aws ec2 describe-instances \
+  --instance-ids <INSTANCE_ID> \
+  --region us-east-1 \
+  --query "Reservations[*].Instances[*].[State.Name,InstanceType]" \
+  --output table
+
+Expected:
+
+--------------------------
+| running | t2.nano      |
+--------------------------
+
+Verify health:
+
+aws ec2 describe-instance-status \
+  --instance-ids <INSTANCE_ID> \
+  --region us-east-1 \
+  --output table
+
+Expected:
+
+InstanceStatus : ok
+SystemStatus   : ok
+Important AWS Wait Commands
+Wait until EC2 is healthy
+aws ec2 wait instance-status-ok \
+  --instance-ids <INSTANCE_ID>
+Wait until EC2 is stopped
+aws ec2 wait instance-stopped \
+  --instance-ids <INSTANCE_ID>
+Wait until EC2 is running
+aws ec2 wait instance-running \
+  --instance-ids <INSTANCE_ID>
+Interview Questions
+Q1. Can you change an EC2 instance type while it is running?
+
+No. The instance must be stopped first.
+
+Q2. What is the purpose of modify-instance-attribute?
+
+Used to modify EC2 instance attributes such as:
+
+Instance type
+Source/Destination check
+User data
+Q3. What are EC2 Status Checks?
+
+AWS performs two checks:
+
+System Status Check
+Hypervisor
+Network
+Physical host
+Instance Status Check
+Operating system
+Network configuration
+Application startup
+Q4. What does aws ec2 wait instance-status-ok do?
+
+It waits until:
+
+SystemStatus = ok
+InstanceStatus = ok
+
+before returning control to the terminal.
+
+KodeKloud Exam Shortcut
+INSTANCE_ID=$(aws ec2 describe-instances \
+--filters "Name=tag:Name,Values=nautilus-ec2" \
+--query "Reservations[].Instances[].InstanceId" \
+--output text)
+
+aws ec2 wait instance-status-ok --instance-ids $INSTANCE_ID
+
+aws ec2 stop-instances --instance-ids $INSTANCE_ID
+
+aws ec2 wait instance-stopped --instance-ids $INSTANCE_ID
+
+aws ec2 modify-instance-attribute \
+--instance-id $INSTANCE_ID \
+--instance-type '{"Value":"t2.nano"}'
+
+aws ec2 start-instances --instance-ids $INSTANCE_ID
+
+aws ec2 wait instance-running --instance-ids $INSTANCE_ID
+Memory Trick
+
+Find → Check Health → Stop → Modify → Start → Verify
+
+1. Find Instance
+2. Wait for Status OK
+3. Stop Instance
+4. Change Type
+5. Start Instance
+6. Verify Running + OK
