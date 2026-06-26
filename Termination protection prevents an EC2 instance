@@ -1,0 +1,74 @@
+What is Termination Protection?
+
+Termination protection prevents an EC2 instance from being accidentally terminated via the AWS Console, AWS CLI, or API.
+
+It does not prevent:
+
+Stopping the instance (unless stop protection is enabled)
+Rebooting the instance
+Termination due to Auto Scaling (in some scenarios)
+Enable Termination Protection
+aws ec2 modify-instance-attribute \
+    --instance-id <INSTANCE_ID> \
+    --disable-api-termination
+Disable Termination Protection
+aws ec2 modify-instance-attribute \
+    --instance-id <INSTANCE_ID> \
+    --no-disable-api-termination
+Verify the Setting
+aws ec2 describe-instance-attribute \
+    --instance-id <INSTANCE_ID> \
+    --attribute disableApiTermination
+
+Example output:
+
+{
+    "DisableApiTermination": {
+        "Value": true
+    }
+}
+Find an Instance by Name Tag
+aws ec2 describe-instances \
+    --filters "Name=tag:Name,Values=datacenter-ec2" \
+    --query "Reservations[].Instances[].InstanceId" \
+    --output text
+Common AWS CLI Workflow
+
+Identify the instance:
+
+aws ec2 describe-instances
+
+Retrieve the instance ID:
+
+aws ec2 describe-instances --filters ...
+
+Modify the instance attribute:
+
+aws ec2 modify-instance-attribute
+
+Verify the change:
+
+aws ec2 describe-instance-attribute
+Interview Questions
+
+Q1. Why would you enable termination protection?
+
+Answer: To prevent accidental deletion of critical production EC2 instances by administrators or automation.
+
+Q2. Does termination protection prevent stopping an instance?
+
+Answer: No. It only blocks termination requests. Stopping an instance is controlled separately.
+
+Q3. Which AWS CLI command enables termination protection?
+
+aws ec2 modify-instance-attribute \
+    --instance-id <INSTANCE_ID> \
+    --disable-api-termination
+
+Q4. How do you verify it is enabled?
+
+aws ec2 describe-instance-attribute \
+    --instance-id <INSTANCE_ID> \
+    --attribute disableApiTermination
+
+This is a common operational task for AWS administrators and DevOps engineers, especially in production environments.
